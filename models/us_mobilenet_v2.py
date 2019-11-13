@@ -54,29 +54,38 @@ class Model(nn.Module):
     def __init__(self, num_classes=1000, input_size=224):
         super(Model, self).__init__()
 
+        if 'cifar' in FLAGS.dataset:
+            first_stride = 1
+            second_stride = 1
+            downsample = 8
+        else:
+            first_stride = 2
+            second_stride = 2
+            downsample = 32
+
         # setting of inverted residual blocks
         self.block_setting = [
             # t, c, n, s
             [1, 16, 1, 1],
-            [6, 24, 2, 2],
+            [6, 24, 2, second_stride],
             [6, 32, 3, 2],
             [6, 64, 4, 2],
             [6, 96, 3, 1],
             [6, 160, 3, 2],
             [6, 320, 1, 1],
         ]
-        if FLAGS.dataset == 'cifar10':
-            self.block_setting[2] = [6, 24, 2, 1]
+        #if FLAGS.dataset == 'cifar10':
+        #    self.block_setting[2] = [6, 24, 2, 1]
 
         self.features = []
 
         width_mult = FLAGS.width_mult_range[-1]
         # head
-        assert input_size % 32 == 0
+        assert input_size % downsample == 0
         channels = make_divisible(32 * width_mult)
         self.outp = make_divisible(
             1280 * width_mult) if width_mult > 1.0 else 1280
-        first_stride = 2
+        #first_stride = 2
         self.features.append(
             nn.Sequential(
                 USConv2d(
@@ -108,7 +117,7 @@ class Model(nn.Module):
                 nn.ReLU6(inplace=True),
             )
         )
-        avg_pool_size = input_size // 32
+        avg_pool_size = input_size // downsample
         self.features.append(nn.AvgPool2d(avg_pool_size))
 
         # make it nn.Sequential
